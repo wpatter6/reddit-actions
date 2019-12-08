@@ -24,7 +24,6 @@ export interface RedditActionFilters {
 }
 
 interface RedditActionSettingsBase extends RedditActionFilters {
-  credentials: SnoowrapOptions
   subreddits: string[]
 }
 

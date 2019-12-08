@@ -1,5 +1,10 @@
 import { CommentStream, InboxStream, SubmissionStream } from 'snoostorm'
-import Snoowrap, { Comment, PrivateMessage, Submission } from 'snoowrap'
+import Snoowrap, {
+  Comment,
+  PrivateMessage,
+  SnoowrapOptions,
+  Submission,
+} from 'snoowrap'
 import GetAction from './action'
 import {
   CreateStream,
@@ -9,50 +14,47 @@ import {
   StreamClass,
 } from './types'
 
+const clients = new WeakMap<RedditActionConnection, Snoowrap>()
+
+export default class RedditActionConnection {
+  constructor(credentials: SnoowrapOptions) {
+    clients.set(this, new Snoowrap(credentials))
+  }
+
+  public onSubmission(
+    onAction: (data: Submission) => any,
+    settings?: RedditActionSettings,
+  ) {
+    doAction<Submission>(onAction, SubmissionStream, this, settings)
+  }
+
+  public onComment(
+    onAction: (data: Comment) => any,
+    settings?: RedditActionSettings,
+  ) {
+    doAction<Comment>(onAction, CommentStream, this, settings)
+  }
+
+  public onInbox(
+    onAction: (data: PrivateMessage) => any,
+    settings?: RedditInboxActionSettings,
+  ) {
+    doAction<PrivateMessage>(onAction, InboxStream as any, this, settings)
+  }
+}
+
 const doAction = <T extends RedditActionData>(
-  actionSettings: RedditActionSettings,
-  // TODO: Properly set up
   onAction: (data: T) => any,
   streamClass: StreamClass,
+  connection: RedditActionConnection,
+  actionSettings?: RedditActionSettings | RedditInboxActionSettings,
 ) => {
-  const {
-    credentials,
-    settings,
-    subreddits,
-    urls,
-    titles,
-    users,
-  } = actionSettings
-  const client = new Snoowrap(credentials)
-  const action = GetAction<T>({ urls, titles, users }, onAction)
-  return subreddits.map(subreddit =>
-    CreateStream(streamClass, client, {
+  const { settings, subreddits } = actionSettings || {}
+  const subs = !subreddits || !subreddits.length ? ['all'] : subreddits
+  return subs.map(subreddit =>
+    CreateStream(streamClass, clients.get(connection)!, {
       subreddit,
       ...settings,
-    }).on('item', action),
+    }).on('item', GetAction<T>(onAction, actionSettings)),
   )
 }
-// export type RedditActionStreams = SubmissionStream | CommentStream | InboxStream
-
-export const SubmissionAction = (
-  actionSettings: RedditActionSettings,
-  onAction: (data: Submission) => any,
-) => {
-  doAction<Submission>(actionSettings, onAction, SubmissionStream)
-}
-
-export const CommentAction = (
-  actionSettings: RedditActionSettings,
-  onAction: (data: Comment) => any,
-) => {
-  doAction<Comment>(actionSettings, onAction, CommentStream)
-}
-
-export const InboxAction = (
-  actionSettings: RedditInboxActionSettings,
-  onAction: (data: PrivateMessage) => any,
-) => {
-  doAction<PrivateMessage>(actionSettings, onAction, InboxStream as any) // TODO: maybe do this better
-}
-
-export default SubmissionAction

@@ -22,8 +22,8 @@ const submissionTriggersAction = (
 ) => urlReg.test(submission.url) && titleReg.test(submission.title)
 
 const getAction = <T extends Submission | Comment | PrivateMessage>(
-  { urls = [], titles = [], users = [] }: RedditActionFilters,
   onAction: RedditAction<T>,
+  { urls = [], titles = [], users = [] }: RedditActionFilters = {},
 ) => {
   const urlReg = new RegExp(urls.join('|'))
   const titleReg = new RegExp(titles.join('|'))
